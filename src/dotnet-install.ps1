@@ -387,12 +387,10 @@ function Parse-ProxyUrl([string] $ProxyUrl) {
         $password = $matches[3]
         $hostAndPort = $matches[4]
         
-        # Only extract credentials if both username and password are present and valid
-        if ($username -and $password) {
-            $result.Address = "$scheme$hostAndPort"
-            $result.Username = $username
-            $result.Password = $password
-        }
+        # Extract credentials (guaranteed by regex match)
+        $result.Address = "$scheme$hostAndPort"
+        $result.Username = $username
+        $result.Password = $password
     }
     
     return $result
