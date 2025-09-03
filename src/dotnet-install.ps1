@@ -379,8 +379,9 @@ function Parse-ProxyUrl([string] $ProxyUrl) {
     }
     
     # Check if URL contains credentials (username:password@)
-    # This regex handles the case where password might contain special characters but username cannot contain :
-    if ($ProxyUrl -match "^(https?://)([^:@]+):([^@]+)@(.+)$") {
+    # This regex allows backslashes in the username (for domain usernames like domain\user:password@proxy.com),
+    # but colons and @ are still not allowed in the username. The password may contain special characters.
+    if ($ProxyUrl -match "^(https?://)((?:[^:@]|\\)+):([^@]+)@(.+)$") {
         $scheme = $matches[1]
         $username = $matches[2]
         $password = $matches[3]
