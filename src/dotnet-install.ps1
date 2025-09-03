@@ -371,6 +371,31 @@ function Load-Assembly([string] $Assembly) {
     }
 }
 
+function Parse-ProxyUrl([string] $ProxyUrl) {
+    $result = @{
+        Address = $ProxyUrl
+        Username = $null
+        Password = $null
+    }
+    
+    # Check if URL contains credentials (username:password@)
+    # This regex allows backslashes in the username (for domain usernames like domain\user:password@proxy.com),
+    # but colons and @ are still not allowed in the username. The password may contain special characters.
+    if ($ProxyUrl -match "^(https?://)((?:[^:@]|\\)+):([^@]+)@(.+)$") {
+        $scheme = $matches[1]
+        $username = $matches[2]
+        $password = $matches[3]
+        $hostAndPort = $matches[4]
+        
+        # Extract credentials (guaranteed by regex match)
+        $result.Address = "$scheme$hostAndPort"
+        $result.Username = $username
+        $result.Password = $password
+    }
+    
+    return $result
+}
+
 function GetHTTPResponse([Uri] $Uri, [bool]$HeaderOnly, [bool]$DisableRedirect, [bool]$DisableFeedCredential) {
     $cts = New-Object System.Threading.CancellationTokenSource
 
@@ -406,12 +431,20 @@ function GetHTTPResponse([Uri] $Uri, [bool]$HeaderOnly, [bool]$DisableRedirect, 
 
             $HttpClientHandler = New-Object System.Net.Http.HttpClientHandler
             if ($ProxyAddress) {
+                # Parse proxy URL to extract credentials if present
+                $ProxyInfo = Parse-ProxyUrl -ProxyUrl $ProxyAddress
+                
                 $HttpClientHandler.Proxy = New-Object System.Net.WebProxy -Property @{
-                    Address               = $ProxyAddress;
+                    Address               = $ProxyInfo.Address;
                     UseDefaultCredentials = $ProxyUseDefaultCredentials;
                     BypassList            = $ProxyBypassList;
                 }
-            }       
+                
+                # Set credentials if they were embedded in the proxy URL
+                if ($ProxyInfo.Username -and $ProxyInfo.Password) {
+                    $HttpClientHandler.Proxy.Credentials = New-Object System.Net.NetworkCredential($ProxyInfo.Username, $ProxyInfo.Password)
+                }
+            }
             if ($DisableRedirect) {
                 $HttpClientHandler.AllowAutoRedirect = $false
             }
